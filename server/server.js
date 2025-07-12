@@ -1,28 +1,74 @@
 const express = require('express');
-const app = express();
 const cors = require('cors');
-require('dotenv').config();
+const path = require('path');
+const dotenv = require('dotenv');
+const {initializeDatabase} = require('./config/database.js');
 
-const userRoutes = require('./routes/users');
+// Import routes
+const authRoutes = require('./routes/auth.js');
+const itemRoutes = require('./routes/items.js');
+const swapRoutes = require('./routes/swaps.js');
+const adminRoutes = require('./routes/admin.js');
 
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+const app = express();
 
+// Middleware
+app.use(cors({
+  origin: process.env.NODE_ENV === 'production' 
+    ? ['https://your-domain.com'] 
+    : ['http://localhost:3000', 'http://localhost:5173'],
+  credentials: true
+}));
 
-const authRoutes = require('./routes/auth');
-app.use('/api/auth', authRoutes);
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Your routes
-const usersRouter = require('./routes/users');
-app.use('/users', usersRouter);
-;
+// Serve uploaded files
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.json({
+    success: true,
+    message: 'ReWear API is running',
+    timestamp: new Date().toISOString()
+  });
 });
 
-const itemRoutes = require('./routes/items');
+// API routesconsole.log('Registering /api/auth');
+app.use('/api/auth', authRoutes);
 app.use('/api/items', itemRoutes);
+app.use('/api/swaps', swapRoutes);
+app.use('/api/admin', adminRoutes);
 
+// Error handling middleware (must have 4 arguments)
+app.use((err, req, res, next) => {
+  console.error('Unhandled error:', err);
+
+  res.status(err.status || 500).json({
+    success: false,
+    message: err.message || 'Internal server error',
+    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+  });
+});
+
+
+// Initialize database and start server
+const PORT = process.env.PORT || 3001;
+
+const startServer = async () => {
+  try {
+    await initializeDatabase();
+    
+    app.listen(PORT, () => {
+      console.log(`🚀 ReWear API server running on port ${PORT}`);
+      console.log(`📱 Health check: http://localhost:${PORT}/api/health`);
+      console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+    });
+  } catch (error) {
+    console.error('❌ Failed to start server:', error);
+    process.exit(1);
+  }
+};
+
+startServer();

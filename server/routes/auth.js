@@ -1,49 +1,54 @@
 const express = require('express');
+const {
+  register,
+  login,
+  getProfile,
+  updateProfile,
+  changePassword
+} = require('../controllers/authController.js');
+const {
+  validateRegister,
+  validateLogin,
+  handleValidationErrors
+} = require('../middleware/validation.js');
+
+const { authenticateToken } = require('../middleware/auth.js');
+const { body } = require('express-validator');
+
 const router = express.Router();
-const db = require('../db');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
 
-// POST /api/auth/register
-router.post('/register', async (req, res) => {
-  const { name, email, password } = req.body;
-  try {
-    const [existing] = await db.query('SELECT * FROM users WHERE email = ?', [email]);
-    if (existing.length > 0) return res.status(400).json({ message: 'Email already registered' });
+// Public routes
+router.post('/register', validateRegister, register);
+router.post('/login', validateLogin, login);
 
-    const salt = await bcrypt.genSalt(10);
-    const passwordHash = await bcrypt.hash(password, salt);
+// Protected routes
+router.get('/profile', authenticateToken, getProfile);
+router.put('/profile', 
+  authenticateToken,
+  [
+    body('name')
+      .trim()
+      .isLength({ min: 2, max: 100 })
+      .withMessage('Name must be between 2 and 100 characters'),
+    handleValidationErrors
+  ],
+  updateProfile
+);
 
-    const [result] = await db.query(
-      'INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)',
-      [name, email, passwordHash]
-    );
-
-    const token = jwt.sign({ id: result.insertId }, process.env.JWT_SECRET, { expiresIn: '7d' });
-    res.status(201).json({ token });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
-// POST /api/auth/login
-router.post('/login', async (req, res) => {
-  const { email, password } = req.body;
-  try {
-    const [users] = await db.query('SELECT * FROM users WHERE email = ?', [email]);
-    const user = users[0];
-    if (!user) return res.status(400).json({ message: 'Invalid email or password' });
-
-    const isMatch = await bcrypt.compare(password, user.password_hash);
-    if (!isMatch) return res.status(400).json({ message: 'Invalid email or password' });
-
-    const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: '7d' });
-    res.json({ token, user: { id: user.id, name: user.name, email: user.email, role: user.role } });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
+router.put('/change-password',
+  authenticateToken,
+  [
+    body('currentPassword')
+      .notEmpty()
+      .withMessage('Current password is required'),
+    body('newPassword')
+      .isLength({ min: 6, max: 128 })
+      .withMessage('New password must be between 6 and 128 characters')
+      .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
+      .withMessage('New password must contain at least one lowercase letter, one uppercase letter, and one number'),
+    handleValidationErrors
+  ],
+  changePassword
+);
 
 module.exports = router;

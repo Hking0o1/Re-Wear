@@ -1,60 +1,46 @@
 const express = require('express');
+const {
+  getItems,
+  getItemById,
+  createItem,
+  updateItem,
+  deleteItem,
+  getCategories
+} = require('../controllers/itemController.js');
+const {
+  validateCreateItem,
+  validateUpdateItem,
+  validatePagination,
+  validateItemFilters
+} = require('../middleware/validation.js');
+const { authenticateToken, optionalAuth } = require('../middleware/auth.js');
+const { upload, handleUploadError } = require('../middleware/upload.js');
+
 const router = express.Router();
-const db = require('../db'); 
 
-router.get('/:id', async (req, res) => {
-  const id = req.params.id;
-  try {
-    const [rows] = await db.query(`
-      SELECT i.*, u.name as uploader_name, u.email as uploader_email
-      FROM items i
-      JOIN users u ON i.uploader_id = u.id
-      WHERE i.id = ?
-    `, [id]);
+// Public routes
+router.get('/', validatePagination, validateItemFilters, optionalAuth, getItems);
+router.get('/categories', getCategories);
+router.get('/:id', getItemById);
 
-    if (!rows.length) return res.status(404).json({ message: 'Item not found' });
+// Protected routes
+router.post('/',
+  authenticateToken,
+  upload.array('images', 5),
+  handleUploadError,
+  validateCreateItem,
+  createItem
+);
 
-    const item = rows[0];
-    item.images = JSON.parse(item.images);  // convert from JSON string
-    item.tags = JSON.parse(item.tags);
+router.put('/:id',
+  authenticateToken,
+  validateUpdateItem,
+  updateItem
+);
 
-    item.uploader = {
-      name: item.uploader_name,
-      email: item.uploader_email
-    };
-
-    delete item.uploader_name;
-    delete item.uploader_email;
-
-    res.json(item);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to fetch item' });
-  }
-});
-
-router.get('/category/:category', async (req, res) => {
-  const category = req.params.category;
-  try {
-    const [rows] = await db.query(`
-      SELECT id, title, images
-      FROM items
-      WHERE category = ?
-      ORDER BY id DESC
-      LIMIT 10
-    `, [category]);
-
-    const items = rows.map(row => ({
-      ...row,
-      images: JSON.parse(row.images)
-    }));
-
-    res.json(items);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to fetch related items' });
-  }
-});
-
+router.delete('/:id',
+  authenticateToken,
+  deleteItem
+);
 
 module.exports = router;
