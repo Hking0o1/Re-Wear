@@ -52,9 +52,9 @@ const register = async (req, res) => {
     // Generate token
     const token = generateToken(userId);
 
-    // Get user data (excluding password_hash)
+    // Get user data (excluding password_hash and is_admin)
     const [users] = await connection.execute(
-      'SELECT id, name, email, points, avatar, is_admin, created_at FROM users WHERE id = ?',
+      'SELECT id, name, email, points, avatar, created_at FROM users WHERE id = ?',
       [userId]
     );
 
@@ -83,9 +83,9 @@ const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Get user with password_hash
+    // Get user with password_hash (remove is_active)
     const [users] = await pool.execute(
-      'SELECT id, name, email, password_hash, points, avatar, is_admin, is_active FROM users WHERE email = ?',
+      'SELECT id, name, email, password_hash, points, avatar FROM users WHERE email = ?',
       [email]
     );
 
@@ -97,14 +97,6 @@ const login = async (req, res) => {
     }
 
     const user = users[0];
-
-    // Check if user is active
-    if (!user.is_active) {
-      return res.status(401).json({
-        success: false,
-        message: 'Account has been deactivated'
-      });
-    }
 
     // Verify password using password_hash
     const isPasswordValid = await bcrypt.compare(password, user.password_hash);
@@ -147,7 +139,7 @@ const getProfile = async (req, res) => {
 
     const [users] = await pool.execute(
       `SELECT 
-        u.id, u.name, u.email, u.points, u.avatar, u.is_admin, u.created_at,
+        u.id, u.name, u.email, u.points, u.avatar, u.created_at,
         COUNT(DISTINCT ci.id) as total_items,
         COUNT(DISTINCT sr.id) as total_swaps
       FROM users u
@@ -191,9 +183,9 @@ const updateProfile = async (req, res) => {
       [name, userId]
     );
 
-    // Get updated user data
+    // Get updated user data (remove is_active)
     const [users] = await pool.execute(
-      'SELECT id, name, email, points, avatar, is_admin, created_at FROM users WHERE id = ?',
+      'SELECT id, name, email, points, avatar, created_at FROM users WHERE id = ?',
       [userId]
     );
 

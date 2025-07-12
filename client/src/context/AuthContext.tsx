@@ -1,14 +1,7 @@
-import React, { createContext, useState, type ReactNode } from 'react';
-import type { User, AuthState } from '../types';
-import axios from 'axios'; // Add this import
-
-interface AuthContextType extends AuthState {
-  login: (email: string, password: string) => Promise<boolean>;
-  register: (name: string, email: string, password: string) => Promise<boolean>;
-  logout: () => void;
-}
-
-export const AuthContext = createContext<AuthContextType | undefined>(undefined);
+import React, { useState, type ReactNode } from 'react';
+import type { AuthState } from '../types';
+import axios from 'axios';
+import { AuthContext } from './AuthContextDef';
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [authState, setAuthState] = useState<AuthState>({
@@ -22,26 +15,31 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const res = await axios.post('/api/auth/login', { email, password });
       if (res.data.success) {
         setAuthState({ user: res.data.data.user, isLoggedIn: true });
-        // Optionally store token: localStorage.setItem('token', res.data.data.token);
         return true;
       }
       return false;
-    } catch (err) {
+    } catch (err: unknown) {
+      if (err && typeof err === 'object' && 'response' in err) {
+        // @ts-expect-error: response is expected on axios error
+        console.error('Login error:', err.response.data);
+      }
       return false;
     }
   };
-
-  // REGISTER
+  
   const register = async (name: string, email: string, password: string): Promise<boolean> => {
     try {
       const res = await axios.post('/api/auth/register', { name, email, password });
       if (res.data.success) {
         setAuthState({ user: res.data.data.user, isLoggedIn: true });
-        // Optionally store token: localStorage.setItem('token', res.data.data.token);
         return true;
       }
       return false;
-    } catch (err) {
+    } catch (err: unknown) {
+      if (err && typeof err === 'object' && 'response' in err) {
+        // @ts-expect-error: response is expected on axios error
+        console.error('Registration error:', err.response.data);
+      }
       return false;
     }
   };
