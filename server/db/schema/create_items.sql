@@ -1,18 +1,17 @@
--- schema/create_items.sql
-
 CREATE TABLE IF NOT EXISTS items (
-  id SERIAL PRIMARY KEY,
-  title TEXT NOT NULL,
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  title VARCHAR(255) NOT NULL,
   description TEXT,
-  category TEXT,
-  type TEXT,
-  size TEXT,
-  condition VARCHAR(20) CHECK (condition IN ('New', 'Like New', 'Good', 'Worn')),
-  tags TEXT[],
-  images TEXT[],
-  status VARCHAR(20) DEFAULT 'Available' CHECK (status IN ('Available', 'Pending', 'Swapped')),
+  category VARCHAR(100),
+  type VARCHAR(100),
+  size VARCHAR(50),
+  `condition` ENUM('New', 'Like New', 'Good', 'Worn') DEFAULT 'Good',
+  tags TEXT, -- optionally store comma-separated tags
+  images TEXT, -- optionally store comma-separated URLs
+  status ENUM('Available', 'Pending', 'Swapped') DEFAULT 'Available',
   approved BOOLEAN DEFAULT FALSE,
-  uploader_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  uploader_id INT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (uploader_id) REFERENCES users(id) ON DELETE CASCADE
 );
