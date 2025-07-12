@@ -14,7 +14,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       const res = await axios.post('/api/auth/login', { email, password });
       if (res.data.success) {
-        setAuthState({ user: res.data.data.user, isLoggedIn: true });
+        const user = res.data.data.user;
+        setAuthState({
+          user: {
+            ...user,
+            joinedDate: user.created_at ? new Date(user.created_at) : new Date(),
+            avatar: user.avatar || ''
+          },
+          isLoggedIn: true
+        });
         return true;
       }
       return false;
@@ -31,14 +39,23 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       const res = await axios.post('/api/auth/register', { name, email, password });
       if (res.data.success) {
-        setAuthState({ user: res.data.data.user, isLoggedIn: true });
+        const user = res.data.data.user;
+        setAuthState({
+          user: {
+            ...user,
+            joinedDate: user.created_at ? new Date(user.created_at) : new Date(),
+            avatar: user.avatar || ''
+          },
+          isLoggedIn: true
+        });
         return true;
       }
       return false;
     } catch (err: unknown) {
       if (err && typeof err === 'object' && 'response' in err) {
         // @ts-expect-error: response is expected on axios error
-        console.error('Registration error:', err.response.data);
+        console.error('Registration error:', err.response.data, err.response.status, err.response.statusText);
+        alert(JSON.stringify(err.response.data, null, 2)); // <-- Add this for debugging
       }
       return false;
     }

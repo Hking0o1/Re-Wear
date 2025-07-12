@@ -33,8 +33,17 @@ const AddItemPage: React.FC<AddItemPageProps> = ({ onPageChange }) => {
       setFormData(prev => ({ ...prev, [name]: value }));
     };
 
-    
-
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+    const fileArray = Array.from(files).slice(0, 5 - images.length);
+    const newImages: string[] = [];
+    for (const file of fileArray) {
+      const url = URL.createObjectURL(file);
+      newImages.push(url);
+    }
+    setImages(prev => [...prev, ...newImages].slice(0, 5));
+  };
 
 
   const removeImage = (index: number) => {
