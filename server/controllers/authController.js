@@ -35,9 +35,9 @@ const register = async (req, res) => {
     const saltRounds = 12;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-    // Create user
+    // Create user (use password_hash)
     const [result] = await connection.execute(
-      'INSERT INTO users (name, email, password) VALUES (?, ?, ?)',
+      'INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)',
       [name, email, hashedPassword]
     );
 
@@ -52,7 +52,7 @@ const register = async (req, res) => {
     // Generate token
     const token = generateToken(userId);
 
-    // Get user data (excluding password)
+    // Get user data (excluding password_hash)
     const [users] = await connection.execute(
       'SELECT id, name, email, points, avatar, is_admin, created_at FROM users WHERE id = ?',
       [userId]
@@ -83,9 +83,9 @@ const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Get user with password
+    // Get user with password_hash
     const [users] = await pool.execute(
-      'SELECT id, name, email, password, points, avatar, is_admin, is_active FROM users WHERE email = ?',
+      'SELECT id, name, email, password_hash, points, avatar, is_admin, is_active FROM users WHERE email = ?',
       [email]
     );
 
@@ -106,8 +106,8 @@ const login = async (req, res) => {
       });
     }
 
-    // Verify password
-    const isPasswordValid = await bcrypt.compare(password, user.password);
+    // Verify password using password_hash
+    const isPasswordValid = await bcrypt.compare(password, user.password_hash);
 
     if (!isPasswordValid) {
       return res.status(401).json({
@@ -119,8 +119,8 @@ const login = async (req, res) => {
     // Generate token
     const token = generateToken(user.id);
 
-    // Remove password from response
-    delete user.password;
+    // Remove password_hash from response
+    delete user.password_hash;
 
     res.json({
       success: true,
@@ -220,7 +220,7 @@ const changePassword = async (req, res) => {
 
     // Get current password
     const [users] = await pool.execute(
-      'SELECT password FROM users WHERE id = ?',
+      'SELECT password_hash FROM users WHERE id = ?',
       [userId]
     );
 
@@ -232,7 +232,7 @@ const changePassword = async (req, res) => {
     }
 
     // Verify current password
-    const isCurrentPasswordValid = await bcrypt.compare(currentPassword, users[0].password);
+    const isCurrentPasswordValid = await bcrypt.compare(currentPassword, users[0].password_hash);
 
     if (!isCurrentPasswordValid) {
       return res.status(400).json({
@@ -247,7 +247,7 @@ const changePassword = async (req, res) => {
 
     // Update password
     await pool.execute(
-      'UPDATE users SET password = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      'UPDATE users SET password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
       [hashedNewPassword, userId]
     );
 
